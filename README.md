@@ -287,27 +287,26 @@ List all document names currently indexed in the vector store.
 
 ## Example Queries and Outputs
 
-The full example interaction log lives in [`EXAMPLES.md`](EXAMPLES.md). Three highlights below — all are real, unedited model outputs from `python scripts/demo.py`.
+The full example interaction log lives in [`EXAMPLES.md`](EXAMPLES.md). Three highlights below — all are real outputs from `python tests/test_query.py --question "..."`.
 
 ---
 
 **Query 1 — Single-document factual lookup**
 
 ```
-Question: What was Salesforce's total revenue in fiscal year 2020?
-```
+==================================================
+Question:
+What was Salesforce's total revenue in fiscal year 2020?
 
-```json
-{
- "answer": "Salesforce's total revenue in fiscal year 2020 was $17.1 billion.",
- "sources": [
- {
- "doc": "NYSE_CRM_2020",
- "page": 45,
- "snippet": "Total fiscal 2020 revenue was $17.1 billion, an increase of 29 percent year-over-year."
- }
- ]
-}
+Answer:
+Salesforce's total revenue for fiscal 2020 was $17,098 million.
+
+Explanation:
+Answer generated from retrieved document context.
+
+Sources:
+[NYSE_CRM_2020 — page 75]
+==================================================
 ```
 
 ---
@@ -315,19 +314,21 @@ Question: What was Salesforce's total revenue in fiscal year 2020?
 **Query 2 — Cross-document comparison**
 
 ```
-Question: Compare the risk factors discussed by Salesforce and Berkshire Hathaway.
-```
+==================================================
+Question:
+Compare the risk factors discussed by Salesforce and Berkshire Hathaway.
 
-```json
-{
- "answer": "Berkshire Hathaway discusses the inherent risks in the insurance business... In contrast, Salesforce highlights the volatility of its common stock... while both companies recognize significant risks, Berkshire focuses on underwriting and catastrophic events in insurance, whereas Salesforce emphasizes stock price volatility and investment risks.",
- "sources": [
- { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "Mistakes in assessing insurance risks can be huge..." },
- { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "We will most certainly not have an underwriting profit in 16 of the next 17 years." },
- { "doc": "NYSE_CRM_2020", "page": 67, "snippet": "the financial success of our investment in any company is typically dependent on a liquidity event." },
- { "doc": "NYSE_CRM_2020", "page": 37, "snippet": "the market price of our common stock is likely to be volatile..." }
- ]
-}
+Answer:
+Berkshire Hathaway discusses the inherent risks in the insurance business, particularly in underwriting and catastrophic events. In contrast, Salesforce highlights the volatility of its common stock and investment risks. While both companies recognize significant risks, Berkshire focuses on insurance underwriting, whereas Salesforce emphasizes stock price volatility.
+
+Explanation:
+Answer generated from retrieved document context.
+
+Sources:
+[NYSE_BRK-A_2021 — page 139]
+[NYSE_CRM_2020 — page 67]
+[NYSE_CRM_2020 — page 37]
+==================================================
 ```
 
 > Cross-document synthesis only works because the retriever runs a per-document pass in addition to the global one — without it, Berkshire's embeddings dominate this query so heavily that zero Salesforce chunks reach the top 30 globally.
@@ -337,14 +338,19 @@ Question: Compare the risk factors discussed by Salesforce and Berkshire Hathawa
 **Query 3 — Out of scope (hallucination guard)**
 
 ```
-Question: What is the company's stated policy on cryptocurrency investments?
-```
+==================================================
+Question:
+What is the company's stated policy on cryptocurrency investments?
 
-```json
-{
- "answer": "Not found in documents.",
- "sources": []
-}
+Answer:
+Not found in documents.
+
+Explanation:
+No relevant information was found in the indexed documents.
+
+Sources:
+None
+==================================================
 ```
 
 > No chunk passed the distance threshold, so the LLM was never called — the fallback was returned directly.
