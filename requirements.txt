@@ -13,3 +13,4 @@ mcp[cli]>=1.0.0
 
 # Utilities
 python-dotenv>=1.0.0
+truststore>=0.10.0

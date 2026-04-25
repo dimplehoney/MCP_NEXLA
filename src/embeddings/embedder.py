@@ -9,6 +9,13 @@ This avoids the ~1-2 second reload penalty on every embed() call, which
 matters when the ingest script and the MCP server both call this repeatedly.
 """
 
+try:
+    import truststore
+except ImportError:
+    truststore = None
+else:
+    truststore.inject_into_ssl()
+
 from sentence_transformers import SentenceTransformer
 
 # Load once. All callers in this process share the same instance.
