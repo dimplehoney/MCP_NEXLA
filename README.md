@@ -135,9 +135,21 @@ python -m src.mcp_server.server
 
 The server runs on stdio transport, ready for any MCP-compatible client to connect.
 
-### Connecting via Claude Desktop
+Once connected, clients can call:
+- query_documents
+- list_documents
 
-Add this to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+### Connecting to an MCP Client
+
+MCP is an open standard — this server works with any MCP-compatible client, not just Claude Desktop.
+
+#### Claude Desktop
+
+Config file location:
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add the `document-qa` entry (replace the path with your actual clone location):
 
 ```json
 {
@@ -145,11 +157,44 @@ Add this to your Claude Desktop config (`~/Library/Application Support/Claude/cl
     "document-qa": {
       "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
       "args": ["-m", "src.mcp_server.server"],
-      "cwd": "/absolute/path/to/MCP_NEXLA"
+      "cwd": "/absolute/path/to/MCP_NEXLA",
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
+      }
     }
   }
 }
 ```
+
+Then **fully quit and relaunch Claude Desktop** (Cmd+Q on macOS, not just closing the window).
+
+#### Cursor
+
+Config file location: `~/.cursor/mcp.json` (create it if it doesn't exist)
+
+```json
+{
+  "mcpServers": {
+    "document-qa": {
+      "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
+      "args": ["-m", "src.mcp_server.server"],
+      "cwd": "/absolute/path/to/MCP_NEXLA",
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
+      }
+    }
+  }
+}
+```
+
+Restart Cursor after saving.
+
+#### Verifying the connection
+
+After restarting your client, open a new chat and look for the tools icon (hammer/`+` button near the input box). You should see `query_documents` and `list_documents` listed. If they don't appear, check the logs:
+
+- **Claude Desktop logs:** `~/Library/Logs/Claude/mcp-server-document-qa.log`
+- **Common fix:** make sure `PYTHONPATH` is set in the config — without it Python cannot locate the `src` package even when `cwd` is correct.
 
 ---
 
