@@ -74,7 +74,10 @@ def _build_prompt(question: str, chunks: list[dict]) -> str:
     context_lines = []
     for i, chunk in enumerate(chunks, start=1):
         header = f"[Source {i}] {chunk['doc_name']} — Page {chunk['page_num']}"
-        context_lines.append(f"{header}\n{chunk['text']}")
+        # Cap chunk text so the model cannot paste thousands of characters
+        # (e.g. dot-leader table rows) verbatim into the snippet field.
+        text = chunk["text"][:600]
+        context_lines.append(f"{header}\n{text}")
 
     context_block = "\n\n".join(context_lines)
     return f"{context_block}\n\nQuestion: {question}"
@@ -92,12 +95,13 @@ Rules:
 - If only partial information is found, state clearly what is known and flag what is missing — do not guess the rest.
 - Always cite the sources you used.
 - Be concise and factual.
+- Keep each snippet under 120 characters — extract the key phrase only, do not copy the full chunk.
 
 Respond in valid JSON with this exact structure:
 {
   "answer": "<your answer here>",
   "sources": [
-    {"doc": "<doc_name>", "page": <page_num>, "snippet": "<short quote from that source>"}
+    {"doc": "<doc_name>", "page": <page_num>, "snippet": "<short quote under 120 chars>"}
   ]
 }
 """
@@ -128,7 +132,7 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
 
     response = _get_client().chat.completions.create(
         model=_MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         temperature=0,  # deterministic — RAG is retrieval, not creative writing
         response_format={"type": "json_object"},  # API-level JSON guarantee
         messages=[
@@ -154,6 +158,11 @@ def _parse_response(raw_text: str) -> dict:
         parsed = json.loads(raw_text)
         parsed.setdefault("answer", "No answer returned.")
         parsed.setdefault("sources", [])
+        # Hard-truncate snippets defensively — even if the model ignores
+        # the prompt instruction, the output stays clean and bounded.
+        for s in parsed["sources"]:
+            if isinstance(s.get("snippet"), str) and len(s["snippet"]) > 120:
+                s["snippet"] = s["snippet"][:120] + "..."
         return parsed
     except json.JSONDecodeError:
         logger.error("Failed to parse LLM response as JSON. Raw: %r", raw_text)
