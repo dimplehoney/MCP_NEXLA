@@ -16,33 +16,33 @@ It uses a RAG (Retrieval-Augmented Generation) pipeline: PDFs are parsed, split 
 
 ```
 PDFs (data/pdfs/)
-     │
-     ▼
-[PDF Parser]          Extract text per page (PyMuPDF)
-     │
-     ▼
-[Chunker]             Split into overlapping 1000-char chunks
-     │                Metadata attached: doc_name, page_num
-     ▼
-[Embedder]            Local sentence-transformers model
-     │                all-MiniLM-L6-v2 → 384-dim vectors
-     ▼
-[ChromaDB]            Persistent local vector store
-     │                Indexed by chunk_id (idempotent upserts)
-     │
-     │   ── at query time ──────────────────────────────────
-     │
-     ▼
-[Retriever]           Embed question, then run TWO retrieval passes:
-     │                  • per-document: top-2 from EACH doc
-     │                  • global:       top-6 across the index
-     │                Merge, dedupe, drop chunks above 0.7 distance,
-     │                resort by score, trim to top-8.
-     ▼
-[Synthesizer]         Build context prompt → call GPT-4o-mini
-     │                temperature=0, response_format=json_object
-     ▼
-[MCP Server]          Return JSON: { answer, sources }
+ │
+ ▼
+[PDF Parser] Extract text per page (PyMuPDF)
+ │
+ ▼
+[Chunker] Split into overlapping 1000-char chunks
+ │ Metadata attached: doc_name, page_num
+ ▼
+[Embedder] Local sentence-transformers model
+ │ all-MiniLM-L6-v2 → 384-dim vectors
+ ▼
+[ChromaDB] Persistent local vector store
+ │ Indexed by chunk_id (idempotent upserts)
+ │
+ │ ── at query time ──────────────────────────────────
+ │
+ ▼
+[Retriever] Embed question, then run TWO retrieval passes:
+ │ • per-document: top-2 from EACH doc
+ │ • global: top-6 across the index
+ │ Merge, dedupe, drop chunks above 0.7 distance,
+ │ resort by score, trim to top-8.
+ ▼
+[Synthesizer] Build context prompt → call GPT-4o-mini
+ │ temperature=0, response_format=json_object
+ ▼
+[MCP Server] Return JSON: { answer, sources }
 ```
 
 **Key design choices:**
@@ -65,13 +65,35 @@ cd MCP_NEXLA
 
 ### 2. Create a virtual environment with Python 3.12
 
-> Python 3.10+ is required (the `mcp` package does not support older versions).
+> Ensure Python 3.10+ is installed (the `mcp` package does not support older versions).
+
+Create the virtual environment:
 
 ```bash
-python3.12 -m venv venv
-source venv/bin/activate        # macOS/Linux
-# venv\Scripts\activate         # Windows
+python -m venv venv
 ```
+
+Activate the virtual environment:
+
+**macOS/Linux:**
+```bash
+source venv/bin/activate
+```
+
+**Windows (Command Prompt):**
+```bash
+venv\Scripts\activate
+```
+
+**Windows (PowerShell):**
+```bash
+venv\Scripts\Activate.ps1
+```
+
+> If PowerShell shows an execution policy error, run:
+> ```bash
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
 
 ### 3. Install dependencies
 
@@ -81,10 +103,17 @@ pip install -r requirements.txt
 
 ### 4. Configure your API key
 
+**macOS/Linux:**
 ```bash
 cp .env.example .env
-# Open .env and set OPENAI_API_KEY=your_key_here
 ```
+
+**Windows:**
+```bash
+copy .env.example .env
+```
+
+Then open `.env` and set `OPENAI_API_KEY=your_key_here`.
 
 ### 5. Add your PDF documents
 
@@ -93,9 +122,9 @@ Place PDFs anywhere inside `data/pdfs/` (subdirectories are supported):
 ```
 data/
 └── pdfs/
-    ├── report_one.pdf
-    └── subfolder/
-        └── report_two.pdf
+ ├── report_one.pdf
+ └── subfolder/
+ └── report_two.pdf
 ```
 
 > **Note on the included `*_qa.jsonl` files:** the `data/pdfs/<id>/` folders ship with `*_qa.jsonl` ground-truth Q&A files alongside each PDF. They are not used at runtime — they are reference data for offline evaluation. Feel free to delete them; the ingestion pipeline ignores everything that isn't a `.pdf`.
@@ -153,16 +182,16 @@ Add the `document-qa` entry (replace the path with your actual clone location):
 
 ```json
 {
-  "mcpServers": {
-    "document-qa": {
-      "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
-      "args": ["-m", "src.mcp_server.server"],
-      "cwd": "/absolute/path/to/MCP_NEXLA",
-      "env": {
-        "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
-      }
-    }
-  }
+ "mcpServers": {
+ "document-qa": {
+ "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
+ "args": ["-m", "src.mcp_server.server"],
+ "cwd": "/absolute/path/to/MCP_NEXLA",
+ "env": {
+ "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
+ }
+ }
+ }
 }
 ```
 
@@ -174,16 +203,16 @@ Config file location: `~/.cursor/mcp.json` (create it if it doesn't exist)
 
 ```json
 {
-  "mcpServers": {
-    "document-qa": {
-      "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
-      "args": ["-m", "src.mcp_server.server"],
-      "cwd": "/absolute/path/to/MCP_NEXLA",
-      "env": {
-        "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
-      }
-    }
-  }
+ "mcpServers": {
+ "document-qa": {
+ "command": "/absolute/path/to/MCP_NEXLA/venv/bin/python",
+ "args": ["-m", "src.mcp_server.server"],
+ "cwd": "/absolute/path/to/MCP_NEXLA",
+ "env": {
+ "PYTHONPATH": "/absolute/path/to/MCP_NEXLA"
+ }
+ }
+ }
 }
 ```
 
@@ -212,22 +241,22 @@ Ask a natural language question and receive a grounded answer from the indexed P
 **Output schema:**
 ```json
 {
-  "answer": "The answer derived from the documents.",
-  "sources": [
-    {
-      "doc": "document_name",
-      "page": 4,
-      "snippet": "Exact quote from the source text."
-    }
-  ]
+ "answer": "The answer derived from the documents.",
+ "sources": [
+ {
+ "doc": "document_name",
+ "page": 4,
+ "snippet": "Exact quote from the source text."
+ }
+ ]
 }
 ```
 
 If no relevant content is found:
 ```json
 {
-  "answer": "Not found in documents.",
-  "sources": []
+ "answer": "Not found in documents.",
+ "sources": []
 }
 ```
 
@@ -250,7 +279,7 @@ List all document names currently indexed in the vector store.
 **Output schema:**
 ```json
 {
-  "documents": ["NYSE_CRM_2020", "NYSE_BRK-A_2021", "OTC_TCS_2020", "NYSE_TME_2021", "ASX_AJY_2020"]
+ "documents": ["NYSE_CRM_2020", "NYSE_BRK-A_2021", "OTC_TCS_2020", "NYSE_TME_2021", "ASX_AJY_2020"]
 }
 ```
 
@@ -270,14 +299,14 @@ Question: What was Salesforce's total revenue in fiscal year 2020?
 
 ```json
 {
-  "answer": "Salesforce's total revenue in fiscal year 2020 was $17.1 billion.",
-  "sources": [
-    {
-      "doc": "NYSE_CRM_2020",
-      "page": 45,
-      "snippet": "Total fiscal 2020 revenue was $17.1 billion, an increase of 29 percent year-over-year."
-    }
-  ]
+ "answer": "Salesforce's total revenue in fiscal year 2020 was $17.1 billion.",
+ "sources": [
+ {
+ "doc": "NYSE_CRM_2020",
+ "page": 45,
+ "snippet": "Total fiscal 2020 revenue was $17.1 billion, an increase of 29 percent year-over-year."
+ }
+ ]
 }
 ```
 
@@ -291,13 +320,13 @@ Question: Compare the risk factors discussed by Salesforce and Berkshire Hathawa
 
 ```json
 {
-  "answer": "Berkshire Hathaway discusses the inherent risks in the insurance business... In contrast, Salesforce highlights the volatility of its common stock... while both companies recognize significant risks, Berkshire focuses on underwriting and catastrophic events in insurance, whereas Salesforce emphasizes stock price volatility and investment risks.",
-  "sources": [
-    { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "Mistakes in assessing insurance risks can be huge..." },
-    { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "We will most certainly not have an underwriting profit in 16 of the next 17 years." },
-    { "doc": "NYSE_CRM_2020",   "page": 67,  "snippet": "the financial success of our investment in any company is typically dependent on a liquidity event." },
-    { "doc": "NYSE_CRM_2020",   "page": 37,  "snippet": "the market price of our common stock is likely to be volatile..." }
-  ]
+ "answer": "Berkshire Hathaway discusses the inherent risks in the insurance business... In contrast, Salesforce highlights the volatility of its common stock... while both companies recognize significant risks, Berkshire focuses on underwriting and catastrophic events in insurance, whereas Salesforce emphasizes stock price volatility and investment risks.",
+ "sources": [
+ { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "Mistakes in assessing insurance risks can be huge..." },
+ { "doc": "NYSE_BRK-A_2021", "page": 139, "snippet": "We will most certainly not have an underwriting profit in 16 of the next 17 years." },
+ { "doc": "NYSE_CRM_2020", "page": 67, "snippet": "the financial success of our investment in any company is typically dependent on a liquidity event." },
+ { "doc": "NYSE_CRM_2020", "page": 37, "snippet": "the market price of our common stock is likely to be volatile..." }
+ ]
 }
 ```
 
@@ -313,8 +342,8 @@ Question: What is the company's stated policy on cryptocurrency investments?
 
 ```json
 {
-  "answer": "Not found in documents.",
-  "sources": []
+ "answer": "Not found in documents.",
+ "sources": []
 }
 ```
 
@@ -442,28 +471,28 @@ The reliable pattern: use AI to draft, then write the asserts yourself. Asserts 
 
 ```
 MCP_NEXLA/
-├── data/pdfs/               # Drop PDFs here (subdirectories supported; *_qa.jsonl files are ignored)
-├── chroma_db/               # Auto-created by ingestion, gitignored
+├── data/pdfs/ # Drop PDFs here (subdirectories supported; *_qa.jsonl files are ignored)
+├── chroma_db/ # Auto-created by ingestion, gitignored
 ├── src/
-│   ├── ingestion/
-│   │   ├── pdf_parser.py    # PDF → page records (PyMuPDF)
-│   │   └── chunker.py       # Page records → chunks with metadata
-│   ├── embeddings/
-│   │   └── embedder.py      # Text → vectors (sentence-transformers)
-│   ├── vector_store/
-│   │   └── store.py         # ChromaDB wrapper (add, query, query_within_doc, reset, list)
-│   ├── retrieval/
-│   │   └── retriever.py     # Question → per-doc + global retrieval, filtered & merged
-│   ├── llm/
-│   │   └── synthesizer.py   # Chunks + question → grounded answer (GPT-4o-mini)
-│   └── mcp_server/
-│       └── server.py        # MCP tool definitions + startup check
+│ ├── ingestion/
+│ │ ├── pdf_parser.py # PDF → page records (PyMuPDF)
+│ │ └── chunker.py # Page records → chunks with metadata
+│ ├── embeddings/
+│ │ └── embedder.py # Text → vectors (sentence-transformers)
+│ ├── vector_store/
+│ │ └── store.py # ChromaDB wrapper (add, query, query_within_doc, reset, list)
+│ ├── retrieval/
+│ │ └── retriever.py # Question → per-doc + global retrieval, filtered & merged
+│ ├── llm/
+│ │ └── synthesizer.py # Chunks + question → grounded answer (GPT-4o-mini)
+│ └── mcp_server/
+│ └── server.py # MCP tool definitions + startup check
 ├── scripts/
-│   ├── ingest.py            # Ingestion CLI (--force to clean-rebuild)
-│   └── demo.py              # Human-readable demo runner
+│ ├── ingest.py # Ingestion CLI (--force to clean-rebuild)
+│ └── demo.py # Human-readable demo runner
 ├── tests/
-│   └── test_query.py        # Assert-based test suite; --question flag for CLI mode
-├── EXAMPLES.md              # Full example interaction log (real outputs)
+│ └── test_query.py # Assert-based test suite; --question flag for CLI mode
+├── EXAMPLES.md # Full example interaction log (real outputs)
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
