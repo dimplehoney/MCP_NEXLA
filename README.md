@@ -34,7 +34,7 @@ PDFs (data/pdfs/)
  │
  ▼
 [Retriever] Embed question, then run TWO retrieval passes:
- │ • per-document: top-2 from EACH doc
+ │ • per-document: top-5 from EACH doc
  │ • global: top-6 across the index
  │ Merge, dedupe, drop chunks above 0.7 distance,
  │ resort by score, trim to top-8.
@@ -299,13 +299,13 @@ Question:
 What was Salesforce's total revenue in fiscal year 2020?
 
 Answer:
-Salesforce's total revenue for fiscal 2020 was $17,098 million.
+Salesforce's total revenue in fiscal year 2020 was $17.1 billion.
 
 Explanation:
 Answer generated from retrieved document context.
 
 Sources:
-[NYSE_CRM_2020 — page 75]
+[NYSE_CRM_2020 — page 45]
 ==================================================
 ```
 
@@ -319,14 +319,13 @@ Question:
 Compare the risk factors discussed by Salesforce and Berkshire Hathaway.
 
 Answer:
-Berkshire Hathaway discusses the inherent risks in the insurance business, particularly in underwriting and catastrophic events. In contrast, Salesforce highlights the volatility of its common stock and investment risks. While both companies recognize significant risks, Berkshire focuses on insurance underwriting, whereas Salesforce emphasizes stock price volatility.
+Berkshire faces long-term insurance risk; Salesforce deals with stock price volatility and investment risks.
 
 Explanation:
 Answer generated from retrieved document context.
 
 Sources:
 [NYSE_BRK-A_2021 — page 139]
-[NYSE_CRM_2020 — page 67]
 [NYSE_CRM_2020 — page 37]
 ==================================================
 ```
@@ -335,7 +334,28 @@ Sources:
 
 ---
 
-**Query 3 — Out of scope (hallucination guard)**
+**Query 3 — Single-document factual lookup**
+
+```
+==================================================
+Question:
+What was TCS's attrition rate in IT Services in FY2020?
+
+Answer:
+TCS's IT services attrition rate in FY 2020 was 12.1%.
+
+Explanation:
+Answer generated from retrieved document context.
+
+Sources:
+[OTC_TCS_2020 — page 90]
+[OTC_TCS_2020 — page 5]
+==================================================
+```
+
+---
+
+**Query 4 — Out of scope (hallucination guard)**
 
 ```
 ==================================================
@@ -423,23 +443,27 @@ The "not found" path and the multi-document path are the most important. Both co
 
 ## Vibe Coding Section
 
-I used **Claude** (via a coding interface) as my primary AI coding assistant, with a secondary feedback loop using **ChatGPT** to validate design decisions and catch blind spots.
+I used **Claude Code** (Anthropic's CLI coding assistant) as my primary AI coding tool, with a secondary feedback loop using **ChatGPT** to validate design decisions and catch blind spots.
 
 ### How I used AI tools
 
 I followed an iterative, two-step workflow:
 
-**Design + Implementation (Claude)**
-- Prompted Claude to design the overall RAG pipeline architecture
+**Design + Implementation (Claude Code)**
+- Prompted Claude Code to design the overall RAG pipeline architecture
 - Asked it to implement each module step-by-step (parser, chunker, embeddings, retriever, synthesizer, MCP server)
 - Gave structured, scoped instructions to keep the system minimal and modular
+
+**What worked in prompting:** Breaking the problem into small, well-scoped tasks ("implement only the chunker, no other modules") produced clean, focused output. Asking Claude Code to explain its design choices before writing code caught architectural issues early.
+
+**What didn't work:** Open-ended prompts like "build the retrieval pipeline" produced over-engineered code with unnecessary abstractions and no tests. Prompts that skipped context (jumping to implementation without stating constraints) led to output that had to be partially discarded. The model also consistently optimised for the happy path — correctness on edge cases always required explicit follow-up.
 
 **Validation + Refinement (ChatGPT + manual review)**
 - After each phase, cross-checked design and code decisions
 - Used ChatGPT to sanity-check architecture choices, surface potential issues (batch limits, hallucination risk, retrieval quality), and improve clarity
-- Fed refined instructions back to Claude
+- Fed refined instructions back to Claude Code
 
-This back-and-forth (Claude ↔ ChatGPT ↔ me) helped avoid blindly accepting generated code and surfaced issues early.
+This back-and-forth (Claude Code ↔ ChatGPT ↔ me) helped avoid blindly accepting generated code and surfaced issues early.
 
 ### Concrete example: the multi-document retrieval bug
 
@@ -447,7 +471,7 @@ The most instructive case was multi-document retrieval. Claude's first cut used 
 
 I dug into the raw ChromaDB results and saw that the top 30 global hits were 100% Berkshire — there was simply no Salesforce content in the candidate pool, so the model couldn't compare. ChatGPT suggested re-ranking the candidate pool for diversity. I implemented that, but the test still failed, because the issue wasn't ranking — it was that Salesforce never made it into the pool at all.
 
-I switched to a hybrid: one ChromaDB query per indexed document (top-2 each, via a `where` filter) plus one global query, then merge and trim. That made the multi-document test pass, and the assignment's *"Multi-document Awareness"* requirement actually hold up.
+I switched to a hybrid: one ChromaDB query per indexed document (top-5 each, via a `where` filter) plus one global query, then merge and trim. That made the multi-document test pass, and the assignment's *"Multi-document Awareness"* requirement actually hold up.
 
 Lesson: AI-generated retrieval code looks correct on the happy path but quietly misses semantic-coverage failures. You only catch them by writing a test for the contract you actually care about.
 

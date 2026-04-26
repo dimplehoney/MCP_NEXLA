@@ -38,7 +38,7 @@ DEFAULT_TOP_K = 8
 
 # Per-doc retrieval — best-in-doc chunks for each indexed document.
 # Guarantees every document gets a chance to contribute context.
-PER_DOC_TOP_K = 2
+PER_DOC_TOP_K = 5
 
 # Global retrieval — best chunks across the whole index, regardless of doc.
 # Fills in extra coverage for the dominant document(s).

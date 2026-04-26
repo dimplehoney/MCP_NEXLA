@@ -22,7 +22,7 @@ from src.retrieval.retriever import retrieve
 QUESTIONS = [
     "What was Salesforce's total revenue in fiscal year 2020?",
     "Compare the risk factors discussed by Salesforce and Berkshire Hathaway.",
-    "What does TCS say about its workforce or employee headcount?",
+    "What was TCS's attrition rate in IT services in FY2020?",
     "What is the company's stated policy on cryptocurrency or blockchain investments?",
 ]
 
